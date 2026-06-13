@@ -6,6 +6,8 @@ import {
   Position,
   Tile,
   InventoryItem,
+  StatueInstance,
+  HiddenDoorInstance,
 } from '../types/game';
 import { generateRoomTemplate, TUTORIAL_ROOM } from '../data/rooms';
 import { getRandomRelic, RELICS } from '../data/relics';
@@ -78,6 +80,18 @@ function createRoomState(depth: number): RoomState {
     fuel: 10 + Math.floor(Math.random() * 10),
   }));
 
+  const statues = template.statues.map((s, i) => ({
+    ...s,
+    id: `statue_${i}_${Date.now()}`,
+    position: { ...s.position },
+  }));
+
+  const hiddenDoors = template.hiddenDoors.map((h, i) => ({
+    ...h,
+    id: `hidden_door_${i}_${Date.now()}`,
+    position: { ...h.position },
+  }));
+
   let entrance: Position = { x: 1, y: 1 };
   let exit: Position = { x: template.width - 2, y: template.height - 2 };
 
@@ -102,6 +116,8 @@ function createRoomState(depth: number): RoomState {
     traps,
     relics,
     torches,
+    statues,
+    hiddenDoors,
     entrance,
     exit,
   };
@@ -144,6 +160,90 @@ function getDirectionOffset(direction: Direction): Position {
   }
 }
 
+function rotateDirection(direction: Direction): Direction {
+  switch (direction) {
+    case 'up': return 'right';
+    case 'right': return 'down';
+    case 'down': return 'left';
+    case 'left': return 'up';
+  }
+}
+
+export function getStatueSightTiles(room: RoomState, statue: StatueInstance): Position[] {
+  const tiles: Position[] = [];
+  const offset = getDirectionOffset(statue.direction);
+  let x = statue.position.x + offset.x;
+  let y = statue.position.y + offset.y;
+
+  for (let i = 0; i < statue.range; i++) {
+    if (x < 0 || x >= room.width || y < 0 || y >= room.height) break;
+
+    const tile = room.tiles[y][x];
+
+    if (
+      tile.type === 'wall' ||
+      tile.type === 'stone' ||
+      tile.type === 'statue' ||
+      (tile.type === 'door' && !tile.activated) ||
+      (tile.type === 'hiddenDoor' && !(room.hiddenDoors.find(h => h.position.x === x && h.position.y === y)?.opened))
+    ) {
+      break;
+    }
+
+    tiles.push({ x, y });
+
+    x += offset.x;
+    y += offset.y;
+  }
+
+  return tiles;
+}
+
+export function getAllStatueSightTiles(room: RoomState): Position[] {
+  const allTiles: Position[] = [];
+  for (const statue of room.statues) {
+    const sight = getStatueSightTiles(room, statue);
+    for (const pos of sight) {
+      if (!allTiles.some(t => t.x === pos.x && t.y === pos.y)) {
+        allTiles.push(pos);
+      }
+    }
+  }
+  return allTiles;
+}
+
+function isPositionInSight(sightTiles: Position[], pos: Position): boolean {
+  return sightTiles.some(t => t.x === pos.x && t.y === pos.y);
+}
+
+function checkStatueSight(game: GameState): void {
+  const sightTiles = getAllStatueSightTiles(game.room);
+  if (isPositionInSight(sightTiles, game.player.position)) {
+    game.player.curse += 5;
+    game.message = '⚠️ 你被守墓石像的视线击中！诅咒增加了5点。推动石头🪨遮挡视线，或按空格转向石像！';
+  }
+}
+
+function checkHiddenDoorReveal(game: GameState): void {
+  for (const statue of game.room.statues) {
+    const sightTiles = getStatueSightTiles(game.room, statue);
+    for (const pos of sightTiles) {
+      const hiddenDoor = game.room.hiddenDoors.find(
+        h => h.position.x === pos.x && h.position.y === pos.y && !h.revealed
+      );
+      if (hiddenDoor) {
+        hiddenDoor.revealed = true;
+        hiddenDoor.opened = true;
+        const tile = game.room.tiles[pos.y][pos.x];
+        if (tile.type === 'hiddenDoor') {
+          tile.activated = true;
+        }
+        game.message = `✨ 石像的目光照向了墙壁，隐藏通道显现出来了！(x=${pos.x}, y=${pos.y})`;
+      }
+    }
+  }
+}
+
 export function movePlayer(game: GameState, direction: Direction): GameState {
   if (game.status !== 'exploring' && game.status !== 'escaping') return game;
 
@@ -167,6 +267,20 @@ export function movePlayer(game: GameState, direction: Direction): GameState {
 
   if (targetTile.type === 'wall') {
     return newGame;
+  }
+
+  if (targetTile.type === 'statue') {
+    newGame.message = '守墓石像挡住了去路。按空格可以尝试转动它。';
+    return newGame;
+  }
+
+  if (targetTile.type === 'hiddenDoor') {
+    const hiddenDoor = newGame.room.hiddenDoors.find(
+      h => h.position.x === newPos.x && h.position.y === newPos.y
+    );
+    if (!hiddenDoor || !hiddenDoor.opened) {
+      return newGame;
+    }
   }
 
   if (targetTile.type === 'door') {
@@ -253,6 +367,8 @@ export function movePlayer(game: GameState, direction: Direction): GameState {
 
   checkTrap(newGame);
   checkRelic(newGame);
+  checkStatueSight(newGame);
+  checkHiddenDoorReveal(newGame);
   checkEntranceExit(newGame);
   updateVisibility(newGame);
 
@@ -560,6 +676,27 @@ export function interact(game: GameState): GameState {
     const ny = y + dir.dy;
     if (nx < 0 || nx >= newGame.room.width || ny < 0 || ny >= newGame.room.height) continue;
     const nearTile = newGame.room.tiles[ny][nx];
+    if (nearTile.type === 'statue') {
+      if (newGame.player.stamina < 8) {
+        newGame.message = '体力不足，无法转动石像。';
+        return newGame;
+      }
+      newGame.player.stamina -= 8;
+      newGame.turn += 1;
+      const statue = newGame.room.statues.find(
+        s => s.position.x === nx && s.position.y === ny
+      );
+      if (statue) {
+        statue.direction = rotateDirection(statue.direction);
+        const dirNames: Record<Direction, string> = {
+          up: '上', down: '下', left: '左', right: '右',
+        };
+        newGame.message = `🗿 你转动了守墓石像，现在它朝向${dirNames[statue.direction]}方。`;
+        checkHiddenDoorReveal(newGame);
+        updateVisibility(newGame);
+        return newGame;
+      }
+    }
     if (nearTile.type === 'relic' || nearTile.type === 'pressurePlate' || nearTile.type === 'exit' || (nearTile.type === 'entrance' && newGame.turn > 0)) {
       newGame.message = `💡 提示：${dir.name}边有可互动对象，先移动过去再按空格吧！`;
       return newGame;

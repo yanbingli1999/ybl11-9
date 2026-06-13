@@ -1,4 +1,4 @@
-import { RoomTemplate, TileType, Position, DoorInstance } from '../types/game';
+import { RoomTemplate, TileType, Position, DoorInstance, Direction, StatueInstance, HiddenDoorInstance } from '../types/game';
 
 function createEmptyRoom(width: number, height: number): TileType[][] {
   const tiles: TileType[][] = [];
@@ -143,6 +143,49 @@ export function generateRoomTemplate(depth: number): RoomTemplate {
     }
   }
 
+  const statueCount = depth >= 2 ? 1 + Math.floor(Math.random() * 2) + Math.floor(depth / 3) : 0;
+  const statues: StatueInstance[] = [];
+  const directions: Direction[] = ['up', 'down', 'left', 'right'];
+  for (let i = 0; i < statueCount; i++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const x = 2 + Math.floor(Math.random() * (width - 4));
+      const y = 1 + Math.floor(Math.random() * (height - 2));
+      if (tiles[y][x] === 'floor' && !(x === entrance.x && y === entrance.y) && !(x === exit.x && y === exit.y)) {
+        tiles[y][x] = 'statue';
+        statues.push({
+          id: `statue_${i}`,
+          position: { x, y },
+          direction: directions[Math.floor(Math.random() * directions.length)],
+          range: 4 + Math.floor(Math.random() * 3),
+        });
+        break;
+      }
+    }
+  }
+
+  const hiddenDoorCount = statues.length > 0 ? Math.min(1 + Math.floor(Math.random() * 2), statues.length) : 0;
+  const hiddenDoors: HiddenDoorInstance[] = [];
+  for (let i = 0; i < hiddenDoorCount; i++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const hx = 1 + Math.floor(Math.random() * (width - 2));
+      const hy = 1 + Math.floor(Math.random() * (height - 2));
+      if (
+        tiles[hy][hx] === 'wall' &&
+        !(hx === entrance.x && hy === entrance.y) &&
+        !(hx === exit.x && hy === exit.y)
+      ) {
+        tiles[hy][hx] = 'hiddenDoor';
+        hiddenDoors.push({
+          id: `hidden_door_${i}`,
+          position: { x: hx, y: hy },
+          revealed: false,
+          opened: false,
+        });
+        break;
+      }
+    }
+  }
+
   return {
     id: `room_depth_${depth}_${Date.now()}`,
     name: `第 ${depth} 层遗迹`,
@@ -154,6 +197,8 @@ export function generateRoomTemplate(depth: number): RoomTemplate {
     traps,
     relics,
     torches,
+    statues,
+    hiddenDoors,
   };
 }
 
@@ -167,7 +212,7 @@ export const TUTORIAL_ROOM: RoomTemplate = {
     ['wall', 'entrance', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'floor', 'floor', 'exit', 'wall'],
     ['wall', 'floor', 'floor', 'stone', 'floor', 'wall', 'wall', 'floor', 'relic', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'door', 'door', 'floor', 'floor', 'floor', 'floor', 'wall'],
-    ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
+    ['wall', 'floor', 'floor', 'floor', 'statue', 'wall', 'wall', 'floor', 'floor', 'floor', 'hiddenDoor', 'wall'],
     ['wall', 'floor', 'pressurePlate', 'floor', 'floor', 'wall', 'wall', 'floor', 'pressurePlate', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'trap', 'floor', 'floor', 'wall'],
@@ -219,5 +264,21 @@ export const TUTORIAL_ROOM: RoomTemplate = {
   torches: [
     { x: 0, y: 1 },
     { x: 11, y: 1 },
+  ],
+  statues: [
+    {
+      id: 'statue_tut_1',
+      position: { x: 4, y: 4 },
+      direction: 'right',
+      range: 4,
+    },
+  ],
+  hiddenDoors: [
+    {
+      id: 'hidden_door_tut_1',
+      position: { x: 10, y: 4 },
+      revealed: false,
+      opened: false,
+    },
   ],
 };

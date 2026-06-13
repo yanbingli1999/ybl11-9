@@ -9,7 +9,9 @@ export type TileType =
   | 'trap'
   | 'relic'
   | 'torch'
-  | 'chest';
+  | 'chest'
+  | 'statue'
+  | 'hiddenDoor';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -56,6 +58,20 @@ export interface RelicInstance {
   relicId: string;
   position: Position;
   collected: boolean;
+}
+
+export interface StatueInstance {
+  id: string;
+  position: Position;
+  direction: Direction;
+  range: number;
+}
+
+export interface HiddenDoorInstance {
+  id: string;
+  position: Position;
+  revealed: boolean;
+  opened: boolean;
 }
 
 export interface Relic {
@@ -126,6 +142,8 @@ export interface RoomTemplate {
   traps: TrapInstance[];
   relics: RelicInstance[];
   torches: Position[];
+  statues: StatueInstance[];
+  hiddenDoors: HiddenDoorInstance[];
 }
 
 export interface RoomState {
@@ -138,6 +156,8 @@ export interface RoomState {
   traps: TrapInstance[];
   relics: RelicInstance[];
   torches: { position: Position; fuel: number }[];
+  statues: StatueInstance[];
+  hiddenDoors: HiddenDoorInstance[];
   entrance: Position;
   exit: Position;
 }
