@@ -212,7 +212,7 @@ export const TUTORIAL_ROOM: RoomTemplate = {
     ['wall', 'entrance', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'floor', 'floor', 'exit', 'wall'],
     ['wall', 'floor', 'floor', 'stone', 'floor', 'wall', 'wall', 'floor', 'relic', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'door', 'door', 'floor', 'floor', 'floor', 'floor', 'wall'],
-    ['wall', 'floor', 'floor', 'floor', 'statue', 'wall', 'wall', 'floor', 'floor', 'floor', 'hiddenDoor', 'wall'],
+    ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'statue', 'floor', 'floor', 'hiddenDoor', 'wall'],
     ['wall', 'floor', 'pressurePlate', 'floor', 'floor', 'wall', 'wall', 'floor', 'pressurePlate', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'floor', 'floor', 'floor', 'wall'],
     ['wall', 'floor', 'floor', 'floor', 'floor', 'wall', 'wall', 'floor', 'trap', 'floor', 'floor', 'wall'],
@@ -268,8 +268,8 @@ export const TUTORIAL_ROOM: RoomTemplate = {
   statues: [
     {
       id: 'statue_tut_1',
-      position: { x: 4, y: 4 },
-      direction: 'right',
+      position: { x: 7, y: 4 },
+      direction: 'up',
       range: 4,
     },
   ],

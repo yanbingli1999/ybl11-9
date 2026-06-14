@@ -180,14 +180,20 @@ export function getStatueSightTiles(room: RoomState, statue: StatueInstance): Po
 
     const tile = room.tiles[y][x];
 
-    if (
-      tile.type === 'wall' ||
-      tile.type === 'stone' ||
-      tile.type === 'statue' ||
-      (tile.type === 'door' && !tile.activated) ||
-      (tile.type === 'hiddenDoor' && !(room.hiddenDoors.find(h => h.position.x === x && h.position.y === y)?.opened))
-    ) {
+    if (tile.type === 'wall' || tile.type === 'stone' || tile.type === 'statue') {
       break;
+    }
+
+    if (tile.type === 'door' && !tile.activated) {
+      break;
+    }
+
+    if (tile.type === 'hiddenDoor') {
+      const hd = room.hiddenDoors.find(h => h.position.x === x && h.position.y === y);
+      if (hd && !hd.opened) {
+        tiles.push({ x, y });
+        break;
+      }
     }
 
     tiles.push({ x, y });
